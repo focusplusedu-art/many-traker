@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
-        /* ---- Ultimate Pro UI Variables (Eco Wealth) ---- */
+        /* ---- Ultimate Pro UI Variables (Eco Wealth Theme) ---- */
         :root {
             --primary: #10b981; 
             --primary-glow: linear-gradient(135deg, #34d399, #059669);
@@ -55,7 +55,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s, border-color 0.3s; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); display: flex; justify-content: center; overflow: hidden; height: 100vh; }
+        body { background: var(--bg); color: var(--text); display: flex; justify-content: center; overflow: hidden; height: 100vh; position: relative; }
         
         .app { width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; position: relative; }
 
@@ -112,7 +112,7 @@
         .input-group { margin-bottom: 16px; }
         label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
         input { width: 100%; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; font-size: 15px; background: var(--input-bg); color: var(--text); outline: none; transition: 0.2s; }
-        input:focus { border-color: var(--primary); background: var(--card); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
+        input:focus { border-color: var(--primary); background: var(--card); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 14px; font-weight: 700; font-size: 15px; cursor: pointer; transition: transform 0.2s, background 0.2s; }
         .btn:active { transform: scale(0.96); opacity: 0.9; }
 
@@ -130,6 +130,13 @@
         /* Lists */
         .list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
         .list-item:last-child { border-bottom: none; }
+        
+        /* Swipeable Lists */
+        .swipe-wrapper { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); touch-action: pan-y; }
+        .swipe-wrapper:last-child { border-bottom: none; }
+        .swipe-content { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; background: var(--card); position: relative; z-index: 2; width: 100%; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .swipe-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; align-items: center; gap: 10px; z-index: 1; padding-left: 15px; }
+
         .item-info h4 { font-size: 15px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
         .item-info p { font-size: 12px; color: var(--text-muted); }
         .item-amount { font-weight: 700; font-size: 15px; color: var(--danger); }
@@ -253,21 +260,12 @@
                 <div class="section-title"><i class="fas fa-filter"></i> Filters</div>
                 <div class="h-scroll" id="historyFilters">
                     <div class="cat-bubble" onclick="setFilter(this, 'today')">Today</div>
-                    <div class="cat-bubble" onclick="setFilter(this, 'week')">This Week</div>
-                    <div class="cat-bubble active" onclick="setFilter(this, 'month')">This Month</div>
+                    <div class="cat-bubble" onclick="setFilter(this, 'week')">Weekly</div>
+                    <div class="cat-bubble active" onclick="setFilter(this, 'month')">Monthly</div>
+                    <div class="cat-bubble" onclick="setFilter(this, 'all')">All Time</div>
                 </div>
-
-                <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div>
-                        <label style="font-size: 10px;">From</label>
-                        <input type="date" id="fromDate">
-                    </div>
-                    <div>
-                        <label style="font-size: 10px;">To</label>
-                        <input type="date" id="toDate">
-                    </div>
-                </div>
-                <button class="btn" onclick="applyCustomFilter()" style="margin-top: 12px; background: var(--bubble-bg); color: var(--text); font-size: 13px; padding: 10px; box-shadow: none;">Apply Custom Date</button>
+                <!-- Sub Filters (Weeks/Months) -->
+                <div class="h-scroll" id="subFilters" style="display:none; margin-top: 10px;"></div>
 
                 <div class="input-group" style="margin-top: 15px; margin-bottom: 0;">
                     <input type="text" id="search" placeholder="Search entries..." onkeyup="loadHistory()">
@@ -285,6 +283,11 @@
         </div>
 
         <div id="stats" class="tab-content">
+            <div class="summary-card" style="background: var(--primary-glow);">
+                <p style="opacity: 0.9; font-size: 13px; font-weight: 600;">Total Expenses</p>
+                <h2 id="allTimeTotalDisplay">Rs. 0.00</h2>
+            </div>
+
             <div class="card">
                 <div class="section-title"><i class="fas fa-chart-line"></i> Spend Comparisons</div>
                 <div class="comp-grid">
@@ -434,7 +437,14 @@
     let selectedCategory = "Food"; 
     let editingId = null; 
     let currentHistoryFilter = 'month';
+    let currentSubFilterValue = new Date().getMonth();
     let chart = null;
+
+    function getCurrentWeek() {
+        let day = new Date().getDate();
+        let w = Math.ceil(day / 7);
+        return w > 4 ? 5 : w;
+    }
 
     const currentTheme = localStorage.getItem('theme') || 'light';
     if (currentTheme === 'dark') document.body.setAttribute('data-theme', 'dark');
@@ -552,7 +562,16 @@
         let log = document.getElementById('todayLog'); log.innerHTML = '';
         if(todayData.length === 0) log.innerHTML = '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding: 10px 0;">No entries for today.</p>';
         todayData.reverse().forEach(e => {
-            log.innerHTML += `<div class="list-item"><div class="item-info"><h4>${e.desc}</h4><p>${e.cat}</p></div><div class="action-btns"><span class="item-amount" style="margin-right:10px; color:var(--text);">Rs. ${e.amt.toFixed(2)}</span><button class="icon-btn btn-edit" onclick="editExp(${e.id})"><i class="fas fa-pen"></i></button><button class="icon-btn btn-del" onclick="promptDelete(${e.id}, execDeleteExp)"><i class="fas fa-trash"></i></button></div></div>`;
+            log.innerHTML += `<div class="swipe-wrapper" ontouchstart="handleItemSwipeStart(event)" ontouchmove="handleItemSwipeMove(event)" ontouchend="handleItemSwipeEnd(event)">
+                <div class="swipe-content" data-swiped="false">
+                    <div class="item-info"><h4>${e.desc}</h4><p>${e.cat}</p></div>
+                    <span class="item-amount" style="color:var(--text);">Rs. ${e.amt.toFixed(2)}</span>
+                </div>
+                <div class="swipe-actions">
+                    <button class="icon-btn btn-edit" onclick="editExp(${e.id})"><i class="fas fa-pen"></i></button>
+                    <button class="icon-btn btn-del" onclick="promptDelete(${e.id}, execDeleteExp)"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
         });
     }
 
@@ -604,70 +623,212 @@
         document.querySelectorAll('#historyFilters .cat-bubble').forEach(b => b.classList.remove('active'));
         el.classList.add('active');
         currentHistoryFilter = type;
-        document.getElementById('fromDate').value = ''; document.getElementById('toDate').value = '';
+        
+        if (type === 'month') {
+            currentSubFilterValue = new Date().getMonth();
+            renderSubFilters('month');
+        } else if (type === 'week') {
+            currentSubFilterValue = getCurrentWeek();
+            renderSubFilters('week');
+        } else {
+            document.getElementById('subFilters').style.display = 'none';
+        }
+        
         loadHistory();
     }
 
-    function applyCustomFilter() {
-        currentHistoryFilter = 'custom';
-        document.querySelectorAll('#historyFilters .cat-bubble').forEach(b => b.classList.remove('active'));
+    function renderSubFilters(type) {
+        let container = document.getElementById('subFilters');
+        container.innerHTML = '';
+        container.style.display = 'flex';
+        
+        if (type === 'month') {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            months.forEach((m, idx) => {
+                let div = document.createElement('div');
+                div.className = `cat-bubble ${idx === currentSubFilterValue ? 'active' : ''}`;
+                div.innerText = m;
+                div.onclick = () => setSubFilter(idx, div);
+                container.appendChild(div);
+            });
+        } else if (type === 'week') {
+            for(let i = 1; i <= 5; i++) {
+                let div = document.createElement('div');
+                div.className = `cat-bubble ${i === currentSubFilterValue ? 'active' : ''}`;
+                div.innerText = `Week ${i}`;
+                div.onclick = () => setSubFilter(i, div);
+                container.appendChild(div);
+            }
+        }
+        setTimeout(() => {
+            let activeEl = container.querySelector('.active');
+            if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }, 100);
+    }
+
+    function setSubFilter(val, el) {
+        document.querySelectorAll('#subFilters .cat-bubble').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        currentSubFilterValue = val;
         loadHistory();
     }
 
     function loadHistory() {
-        let from = document.getElementById('fromDate').value, to = document.getElementById('toDate').value;
         let q = document.getElementById('search').value.toLowerCase();
         let today = getLocalDateString(new Date());
         
-        // Find start dates for week filtering
         let now = new Date();
-        let weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - 6);
-        let weekStartStr = getLocalDateString(weekStart);
+        let currYear = now.getFullYear();
+        let currMonth = now.getMonth();
 
         let filtered = expenses.filter(e => {
             let matchesSearch = e.desc.toLowerCase().includes(q) || e.cat.toLowerCase().includes(q);
             if(!matchesSearch) return false;
             
+            let d = new Date(e.date);
+            
             if(currentHistoryFilter === 'today') return e.date === today;
-            if(currentHistoryFilter === 'week') return e.date >= weekStartStr && e.date <= today;
-            if(currentHistoryFilter === 'month') return e.date.startsWith(today.substring(0, 7));
-            if(currentHistoryFilter === 'custom' && from && to) return e.date >= from && e.date <= to;
+            if(currentHistoryFilter === 'week') {
+                if (d.getFullYear() !== currYear || d.getMonth() !== currMonth) return false;
+                let day = d.getDate();
+                let weekNum = Math.ceil(day / 7);
+                if (weekNum > 4) weekNum = 5;
+                return weekNum === currentSubFilterValue;
+            }
+            if(currentHistoryFilter === 'month') {
+                return d.getFullYear() === currYear && d.getMonth() === currentSubFilterValue;
+            }
+            if(currentHistoryFilter === 'all') return true; 
             
             return true;
         });
+
+        let fTitle = "Total";
+        if(currentHistoryFilter === 'today') fTitle = "Total (Today)";
+        else if(currentHistoryFilter === 'week') fTitle = `Total (Week ${currentSubFilterValue})`;
+        else if(currentHistoryFilter === 'month') {
+            const mNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            fTitle = `Total (${mNames[currentSubFilterValue]})`;
+        }
+        else if(currentHistoryFilter === 'all') fTitle = "Total (All Time)";
+        document.getElementById('filterTitle').innerText = fTitle;
 
         document.getElementById('historyTotalDisplay').innerText = `Rs. ${filtered.reduce((s, e) => s + e.amt, 0).toFixed(2)}`;
         let log = document.getElementById('historyLog'); log.innerHTML = '';
         if(filtered.length === 0) log.innerHTML = '<p style="text-align:center; font-size:13px; color:var(--text-muted); padding: 20px 0;">No records found.</p>';
         else {
             filtered.sort((a,b) => b.id - a.id).forEach(e => {
-                log.innerHTML += `<div class="list-item"><div class="item-info"><h4>${e.desc}</h4><p>${e.date} &nbsp;•&nbsp; ${e.cat}</p></div><div class="action-btns"><span class="item-amount" style="color:var(--text); margin-right:5px;">Rs. ${e.amt.toFixed(2)}</span><button class="icon-btn btn-del" onclick="promptDelete(${e.id}, execDeleteExp)"><i class="fas fa-trash"></i></button></div></div>`;
+                log.innerHTML += `<div class="swipe-wrapper" ontouchstart="handleItemSwipeStart(event)" ontouchmove="handleItemSwipeMove(event)" ontouchend="handleItemSwipeEnd(event)">
+                    <div class="swipe-content" data-swiped="false">
+                        <div class="item-info"><h4>${e.desc}</h4><p>${e.date} &nbsp;•&nbsp; ${e.cat}</p></div>
+                        <span class="item-amount" style="color:var(--text);">Rs. ${e.amt.toFixed(2)}</span>
+                    </div>
+                    <div class="swipe-actions">
+                        <button class="icon-btn btn-del" onclick="promptDelete(${e.id}, execDeleteExp)"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
             });
         }
         window.currentFilteredData = filtered;
     }
 
+    // --- Swipe Logic Variables & Functions ---
+    let swipeStartX = 0;
+    let swipeCurrentX = 0;
+    let activeSwipeElement = null;
+
+    function handleItemSwipeStart(e) {
+        // Reset previously swiped items
+        document.querySelectorAll('.swipe-content').forEach(el => {
+            if (el !== e.currentTarget.querySelector('.swipe-content')) {
+                el.style.transform = 'translateX(0)';
+                el.dataset.swiped = 'false';
+            }
+        });
+
+        swipeStartX = e.touches[0].clientX;
+        swipeCurrentX = swipeStartX;
+        activeSwipeElement = e.currentTarget.querySelector('.swipe-content');
+        activeSwipeElement.style.transition = 'none';
+    }
+
+    function handleItemSwipeMove(e) {
+        if (!activeSwipeElement) return;
+        swipeCurrentX = e.touches[0].clientX;
+        let diff = swipeCurrentX - swipeStartX;
+        
+        let actionsWidth = activeSwipeElement.nextElementSibling.offsetWidth;
+        
+        if (activeSwipeElement.dataset.swiped === 'true') {
+            diff = diff - actionsWidth; // Start from already open position
+        }
+
+        // Limit swipe boundary
+        if (diff <= 0 && diff >= -actionsWidth - 20) {
+            activeSwipeElement.style.transform = `translateX(${diff}px)`;
+        }
+    }
+
+    function handleItemSwipeEnd(e) {
+        if (!activeSwipeElement) return;
+        activeSwipeElement.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        
+        let diff = swipeCurrentX - swipeStartX;
+        let actionsWidth = activeSwipeElement.nextElementSibling.offsetWidth;
+        
+        if (activeSwipeElement.dataset.swiped === 'true') {
+            // If swiping right, close it
+            if (diff > 20) {
+                activeSwipeElement.style.transform = `translateX(0)`;
+                activeSwipeElement.dataset.swiped = 'false';
+            } else {
+                activeSwipeElement.style.transform = `translateX(-${actionsWidth}px)`;
+            }
+        } else {
+            // If swiping left enough, open it
+            if (diff < -30) {
+                activeSwipeElement.style.transform = `translateX(-${actionsWidth}px)`;
+                activeSwipeElement.dataset.swiped = 'true';
+            } else {
+                activeSwipeElement.style.transform = `translateX(0)`;
+            }
+        }
+        activeSwipeElement = null;
+    }
+
     function updateStatsTab() {
         let now = new Date(), todayStr = getLocalDateString(now);
         let yest = new Date(now); yest.setDate(now.getDate() - 1); let yestStr = getLocalDateString(yest);
-        let wStart = new Date(now); wStart.setDate(now.getDate() - 6);
-        let pwEnd = new Date(now); pwEnd.setDate(now.getDate() - 7);
-        let pwStart = new Date(now); pwStart.setDate(now.getDate() - 13);
+        
+        let wStart = new Date(now); wStart.setDate(now.getDate() - 6); let wStartStr = getLocalDateString(wStart);
+        let pwEnd = new Date(now); pwEnd.setDate(now.getDate() - 7); let pwEndStr = getLocalDateString(pwEnd);
+        let pwStart = new Date(now); pwStart.setDate(now.getDate() - 13); let pwStartStr = getLocalDateString(pwStart);
+        
         let thisMonthStr = todayStr.substring(0, 7);
         let lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); let lmStr = getLocalDateString(lm).substring(0, 7);
 
-        let tT = 0, tY = 0, tW = 0, tpW = 0, tM = 0, tpM = 0;
+        let tT = 0, tY = 0, tW = 0, tpW = 0, tM = 0, tpM = 0, tAll = 0;
         expenses.forEach(e => {
-            if(e.date === todayStr) tT += e.amt; if(e.date === yestStr) tY += e.amt;
-            let d = new Date(e.date);
-            if(d >= wStart && d <= now) tW += e.amt; if(d >= pwStart && d <= pwEnd) tpW += e.amt;
-            if(e.date.startsWith(thisMonthStr)) tM += e.amt; if(e.date.startsWith(lmStr)) tpM += e.amt;
+            tAll += e.amt; // Total expenses
+            if(e.date === todayStr) tT += e.amt; 
+            if(e.date === yestStr) tY += e.amt;
+            
+            // Compare string dates correctly
+            if(e.date >= wStartStr && e.date <= todayStr) tW += e.amt; 
+            if(e.date >= pwStartStr && e.date <= pwEndStr) tpW += e.amt;
+            
+            if(e.date.startsWith(thisMonthStr)) tM += e.amt; 
+            if(e.date.startsWith(lmStr)) tpM += e.amt;
         });
 
         document.getElementById('compToday').innerText = tT.toFixed(0); updateTrendUI('trendToday', tT, tY);
         document.getElementById('compWeek').innerText = tW.toFixed(0); updateTrendUI('trendWeek', tW, tpW);
         document.getElementById('compMonth').innerText = tM.toFixed(0); updateTrendUI('trendMonth', tM, tpM);
+        
+        if(document.getElementById('allTimeTotalDisplay')) {
+            document.getElementById('allTimeTotalDisplay').innerText = `Rs. ${tAll.toFixed(2)}`;
+        }
+        
         renderChart();
     }
 
@@ -802,13 +963,20 @@
     }
 
     refresh();
+    renderSubFilters('month'); // Initialize default sub filters UI on load
     
-    // App eka open karapu gaman background eken cloud eken data gannawa (Auto-sync)
+    // App auto-sync
     setTimeout(fetchFromCloud, 1000);
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
+        try {
+            navigator.serviceWorker.register('sw.js').catch(() => {
+                console.log("Service Worker registration skipped or failed in this environment.");
+            });
+        } catch(e) {
+            console.log("PWA features not available in current context.");
+        }
     }
 </script>
 </body>
